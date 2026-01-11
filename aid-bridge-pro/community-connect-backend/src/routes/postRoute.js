@@ -15,4 +15,16 @@ router.get('/:id', postController.getPost);
 router.put('/:id', postController.updatePost);
 router.delete('/:id', postController.deletePost);
 
+// Like/Unlike endpoints
+router.post('/:id/like', postController.likePost);
+router.post('/:id/unlike', postController.unlikePost);
+
+// Share endpoint
+router.post('/:id/share', postController.sharePost);
+
+// Comments endpoints
+router.get('/:id/comments', postController.getComments);
+router.post('/:id/comments', postController.addComment);
+router.delete('/:id/comments/:commentId', postController.deleteComment);
+
 module.exports = router;

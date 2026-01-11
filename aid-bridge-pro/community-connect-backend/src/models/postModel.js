@@ -53,6 +53,33 @@ const postSchema = new mongoose.Schema(
       latitude: { type: Number, required: false },
       longitude: { type: Number, required: false },
     },
+    likes: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    }],
+    shares: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    }],
+    comments: [{
+      userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+      },
+      userName: {
+        type: String,
+        required: true,
+      },
+      text: {
+        type: String,
+        required: true,
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now,
+      },
+    }],
   },
   { timestamps: true }
 );

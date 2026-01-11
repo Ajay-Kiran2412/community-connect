@@ -1,5 +1,6 @@
 // components/PostCard.tsx
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -7,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Heart, MessageCircle, Share, Clock, MapPin } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
 
 
 interface PostCardProps {
@@ -32,9 +34,17 @@ interface PostCardProps {
 }
 
 export const PostCard = ({ post, currentUserId, onRequestSent }: PostCardProps) => {
+  const navigate = useNavigate();
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(0);
   const [showFullImage, setShowFullImage] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [comments, setComments] = useState<any[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [loadingLike, setLoadingLike] = useState(false);
+  const [loadingComment, setLoadingComment] = useState(false);
+
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   const getCategoryIcon = (category: string) => {
     const icons: { [key: string]: string } = {
@@ -59,11 +69,142 @@ export const PostCard = ({ post, currentUserId, onRequestSent }: PostCardProps) 
     return colors[urgency] || 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
+  const handleLike = async () => {
+    setLoadingLike(true);
+    try {
+      const token = localStorage.getItem('token');
+      const endpoint = isLiked ? 'unlike' : 'like';
+      
+      console.log('Sending like request to:', `${apiUrl}/posts/${post._id}/${endpoint}`);
+      
+      const response = await fetch(`${apiUrl}/posts/${post._id}/${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+      console.log('Like response:', data);
+
+      if (response.ok) {
+        setIsLiked(!isLiked);
+        setLikesCount(data.likesCount || (isLiked ? likesCount - 1 : likesCount + 1));
+        toast.success(isLiked ? 'Unliked' : 'Liked!');
+      } else {
+        console.error('Like error response:', data);
+        toast.error(data.error || 'Failed to update like');
+      }
+    } catch (error) {
+      console.error('Like error:', error);
+      toast.error('Error updating like');
+    } finally {
+      setLoadingLike(false);
+    }
+  };
+
+  const handleLoadComments = async () => {
+    if (showComments) {
+      setShowComments(false);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      console.log('Loading comments from:', `${apiUrl}/posts/${post._id}/comments`);
+      
+      const response = await fetch(`${apiUrl}/posts/${post._id}/comments`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+      console.log('Comments response:', data);
+
+      if (response.ok) {
+        setComments(data.comments || []);
+      } else {
+        console.error('Comments error:', data);
+        toast.error(data.error || 'Failed to load comments');
+      }
+    } catch (error) {
+      console.error('Comments error:', error);
+      toast.error('Error loading comments');
+    }
+    setShowComments(true);
+  };
+
+  const handleAddComment = async () => {
+    if (!newComment.trim()) {
+      toast.error('Comment cannot be empty');
+      return;
+    }
+
+    setLoadingComment(true);
+    try {
+      const token = localStorage.getItem('token');
+      console.log('Adding comment to post:', post._id);
+      
+      const response = await fetch(`${apiUrl}/posts/${post._id}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ text: newComment })
+      });
+
+      const data = await response.json();
+      console.log('Add comment response:', data);
+
+      if (response.ok) {
+        setComments([...comments, data.comment]);
+        setNewComment("");
+        toast.success('Comment added!');
+      } else {
+        console.error('Add comment error:', data);
+        toast.error(data.error || data.message || 'Failed to add comment');
+      }
+    } catch (error) {
+      console.error('Comment error:', error);
+      toast.error('Error adding comment');
+    } finally {
+      setLoadingComment(false);
+    }
+  };
+
+  const handleShare = async () => {
+    const shareData = {
+      title: post.title,
+      text: post.description,
+      url: window.location.href
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        toast.success('Shared successfully!');
+      } else {
+        // Fallback: Copy to clipboard
+        const shareText = `${post.title}\n${post.description}\n${window.location.href}`;
+        await navigator.clipboard.writeText(shareText);
+        toast.success('Link copied to clipboard!');
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name !== 'AbortError') {
+        console.error('Share error:', error);
+        toast.error('Share failed');
+      }
+    }
+  };
+
   const handleHelp = async () => {
-    // Implement help request logic here
-    console.log('Help requested for post:', post._id);
-    // You can add API call to send help request
-    toast.success("Help request sent!");
+    // Navigate to request help page
+    navigate(`/request/${post._id}/${post.category === 'blood' ? 'donate' : 'help'}`, {
+      state: { post }
+    });
     if (onRequestSent) onRequestSent();
   };
 
@@ -152,24 +293,35 @@ export const PostCard = ({ post, currentUserId, onRequestSent }: PostCardProps) 
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-between pt-2">
-            <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between pt-2 border-t">
+            <div className="flex items-center gap-2 flex-1">
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setIsLiked(!isLiked)}
+                onClick={handleLike}
+                disabled={loadingLike}
                 className={`flex items-center gap-1 ${isLiked ? 'text-red-500' : 'text-muted-foreground'}`}
               >
                 <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
                 <span className="text-xs">{likesCount}</span>
               </Button>
               
-              <Button variant="ghost" size="sm" className="flex items-center gap-1 text-muted-foreground">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleLoadComments}
+                className="flex items-center gap-1 text-muted-foreground hover:text-primary"
+              >
                 <MessageCircle className="h-4 w-4" />
-                <span className="text-xs">Comment</span>
+                <span className="text-xs">{comments.length}</span>
               </Button>
               
-              <Button variant="ghost" size="sm" className="flex items-center gap-1 text-muted-foreground">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleShare}
+                className="flex items-center gap-1 text-muted-foreground hover:text-primary"
+              >
                 <Share className="h-4 w-4" />
                 <span className="text-xs">Share</span>
               </Button>
@@ -184,6 +336,56 @@ export const PostCard = ({ post, currentUserId, onRequestSent }: PostCardProps) 
               {isBloodPost ? 'Donate' : 'Help'}
             </Button>
           </div>
+
+          {/* Comments Section */}
+          {showComments && (
+            <div className="mt-4 pt-4 border-t space-y-3">
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {comments.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">No comments yet</p>
+                ) : (
+                  comments.map((comment, idx) => (
+                    <div key={idx} className="text-sm">
+                      <div className="flex gap-2">
+                        <Avatar className="h-6 w-6">
+                          <AvatarFallback className="text-xs bg-primary/20">
+                            {comment.userName?.[0] || 'U'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 bg-gray-100 rounded p-2">
+                          <div className="font-medium text-xs">{comment.userName || 'Anonymous'}</div>
+                          <p className="text-xs mt-1">{comment.text}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              
+              <div className="flex gap-2 pt-2">
+                <Input
+                  placeholder="Add a comment..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleAddComment();
+                    }
+                  }}
+                  className="text-sm"
+                />
+                <Button
+                  size="sm"
+                  onClick={handleAddComment}
+                  disabled={loadingComment || !newComment.trim()}
+                  className="gradient-primary text-white"
+                >
+                  Post
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Blood Post Urgent Banner */}

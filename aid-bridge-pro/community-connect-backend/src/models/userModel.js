@@ -37,6 +37,23 @@ const userSchema = new mongoose.Schema(
         enum: ['verified', 'helper', 'life_saver', 'service'],
       },
     ],
+    deviceTokens: [
+      {
+        type: String,
+        description: 'Firebase Cloud Messaging device tokens for push notifications',
+      },
+    ],
+    notificationPreferences: {
+      newPosts: {
+        type: Boolean,
+        default: true,
+      },
+      allCategories: {
+        type: Boolean,
+        default: true,
+      },
+      categories: [String],
+    },
   },
   { timestamps: true }
 );

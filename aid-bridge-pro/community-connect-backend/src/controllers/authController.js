@@ -188,3 +188,67 @@ exports.verifyUser = async (req, res, next) => {
     next(error);
   }
 };
+
+// Save device token for push notifications
+exports.saveDeviceToken = async (req, res, next) => {
+  try {
+    const { deviceToken } = req.body;
+    
+    if (!deviceToken) {
+      return res.status(400).json({ error: 'Device token is required' });
+    }
+
+    const user = await User.findById(req.user._id);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if token already exists
+    if (!user.deviceTokens.includes(deviceToken)) {
+      user.deviceTokens.push(deviceToken);
+      await user.save();
+      console.log(`Device token saved for user ${user._id}`);
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Device token saved successfully',
+      data: { tokenCount: user.deviceTokens.length }
+    });
+  } catch (error) {
+    console.error('Error saving device token:', error);
+    next(error);
+  }
+};
+
+// Remove device token
+exports.removeDeviceToken = async (req, res, next) => {
+  try {
+    const { deviceToken } = req.body;
+    
+    if (!deviceToken) {
+      return res.status(400).json({ error: 'Device token is required' });
+    }
+
+    const user = await User.findById(req.user._id);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    user.deviceTokens = user.deviceTokens.filter(token => token !== deviceToken);
+    await user.save();
+    
+    console.log(`Device token removed for user ${user._id}`);
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Device token removed successfully',
+      data: { tokenCount: user.deviceTokens.length }
+    });
+  } catch (error) {
+    console.error('Error removing device token:', error);
+    next(error);
+  }
+};

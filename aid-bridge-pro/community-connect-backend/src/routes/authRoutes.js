@@ -11,5 +11,7 @@ router.post('/verify/:id', authController.verifyUser);
 router.post('/refresh', authController.refresh);
 router.post('/logout', authController.logout);
 router.get('/me', protect, authController.me);
+router.post('/device-token', protect, authController.saveDeviceToken);
+router.delete('/device-token', protect, authController.removeDeviceToken);
 
 module.exports = router;

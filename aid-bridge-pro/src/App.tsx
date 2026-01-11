@@ -12,6 +12,9 @@ import Profile from "./pages/Profile";
 import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
 import Messages from "./pages/messages";
+import { RequestHelp } from "./pages/RequestHelp";
+import { RequestSuccess } from "./pages/RequestSuccess";
+import { ManageRequests } from "./pages/ManageRequests";
 // ...existing code...
 
 const queryClient = new QueryClient();
@@ -29,6 +32,9 @@ const App = () => (
           <Route path="/profile" element={<Profile />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/messages" element={<Messages />} />
+          <Route path="/request/:postId/:type" element={<RequestHelp />} />
+          <Route path="/request-success" element={<RequestSuccess />} />
+          <Route path="/manage-requests/:postId" element={<ManageRequests />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
